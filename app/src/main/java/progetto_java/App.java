@@ -3,12 +3,25 @@
  */
 package progetto_java;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public class App {
-    public String getGreeting() {
-        return "Hello World!";
+    void createConnection() {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/test_schema", "root", "PasswordUsedForMySQLRoot123!");
+            System.out.println("Connection established successfully!");
+        } catch (ClassNotFoundException | SQLException e) {
+            Logger.getLogger (this.getClass().getName()).log (Level. SEVERE, null, e);
+        }
     }
 
     public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+        App newApp = new App();
+        newApp.createConnection();
     }
 }
