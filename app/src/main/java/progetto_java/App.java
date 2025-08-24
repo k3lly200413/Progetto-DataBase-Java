@@ -3,18 +3,77 @@
  */
 package progetto_java;
 
+import java.sql.Statement;
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.naming.spi.DirStateFactory.Result;
+import javax.swing.table.DefaultTableModel;
+
+import com.google.common.util.concurrent.Callables;
+
 public class App {
+
+    Connection connection;
+
     void createConnection() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/test_schema", "root", "PasswordUsedForMySQLRoot123!");
+            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/test_schema", "root", "PasswordUsedForMySQLRoot123!");
             System.out.println("Connection established successfully!");
+
+            PreparedStatement prepStmt = connection.prepareStatement(
+                // ? = variabile da modificare inserendo quello che vogliamo noi
+                "insert into users values (?)");
+            // conteggio di index inizia da 1 NON da 0 (scritto nel javadoc quando ci passi il mouse sopra)
+            prepStmt.setString(1, "testName11");
+            prepStmt.execute();
+            System.out.println("Insetion Completed");
+
+            PreparedStatement prepStmt2 = connection.prepareStatement(
+                // ? = variabile da modificare inserendo quello che vogliamo noi
+                "insert into users2 values (?,?)");
+            // conteggio di index inizia da 1 NON da 0 (scritto nel javadoc quando ci passi il mouse sopra)
+            prepStmt2.setString(1, "testName7");
+            prepStmt2.setInt(2, 12);
+            prepStmt2.execute();
+            System.out.println("Insetion Completed");
+
+            Statement stmt = connection.createStatement();
+            String nameInsert = "testName4";
+            String dbop = "insert into users values('"+ nameInsert +"')";
+            stmt.execute(dbop);
+            this.updateName("testName7", 11);
+            this.deleteRecord("testName7");
+            this.addBatchFun();
+            ResultSet result = 
+            stmt.executeQuery(
+                // solo nomi che iniziano con A
+                // The percent sign % represents zero, one, or multiple characters
+                // The underscore sign _ represents one, single character
+                "select * from users2"
+            );
+            
+            
+
+            while (result.next()) {
+                String name = result.getString("name");
+                System.out.print(name + "\t");
+                name = result.getString("age");
+                System.out.println(name);
+            }
+            this.callableSimpleProcedure();
+            stmt.executeUpdate("delete from users");
+            stmt.executeUpdate("delete from users2");
+
+            
+
         } catch (ClassNotFoundException | SQLException e) {
             Logger.getLogger (this.getClass().getName()).log (Level. SEVERE, null, e);
         }
@@ -23,5 +82,96 @@ public class App {
     public static void main(String[] args) {
         App newApp = new App();
         newApp.createConnection();
+        newApp.createTable();
+    }
+
+    public boolean updateName(String name, int age) {
+        try {
+            PreparedStatement preparedStatement = connection.prepareStatement("update users2 set age = ? where name = ?");
+            preparedStatement.setInt(1, 11);
+            preparedStatement.setString(2, "testName7");
+            preparedStatement.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            System.out.println("Errore => " + e);
+            return false;
+        }
+    }
+
+    public void callableSimpleProcedure() {
+        try {
+            CallableStatement stmt = connection.prepareCall("{call simple_procedure(?, ?)}");
+            stmt.setInt(1, 40);
+            stmt.registerOutParameter(2, java.sql.Types.INTEGER);
+            Boolean hasResult = stmt.execute();
+            System.out.println("Arrivato");
+            if (hasResult) {
+                ResultSet res = stmt.getResultSet();
+                int countReturned = stmt.getInt(2);
+                System.out.println("Number of members got = " + countReturned);
+                while (res.next()) {
+                    System.out.println(res.getString("name"));
+                }
+            }
+            stmt.close();
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } // se hai args serve aggiugnere ? in parentesi
+    }
+
+    public boolean deleteRecord(String name) {
+        String sqlc = "delete from users2 where name = ?";
+        PreparedStatement preparedStatement;
+        try {
+            preparedStatement = connection.prepareStatement(sqlc);
+            preparedStatement.setString(1, name);
+            preparedStatement.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            System.out.println(e);
+        }
+        return false;
+    }
+
+    public void addBatchFun() {
+        try {
+            Statement stmt = connection.createStatement();
+            stmt.addBatch("insert into users2 values('user1', 25)");
+            stmt.addBatch("insert into users2 values('user2', 52)");
+            stmt.addBatch("insert into users2 values('user3', 78)");
+            stmt.addBatch("insert into users2 values('user4', 36)");
+            int[] result = stmt.executeBatch();
+            for (int i : result) {
+                System.out.println(i);
+            }
+            // per preparedStatement uguale a sopra ma prima di passare a quello dopo aggiugnere stmt.clearParameters();
+
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            System.out.println(e);
+        }
+    }
+
+    public void createTable() {
+        String q = "create table db1 ("
+        // virgola per separare colonne 
+        + "name varchar(100), "
+        + "age int, "
+        + "salary float"
+        + ")";
+        try {
+            Statement stmt = this.connection.createStatement();
+            stmt.execute(q);
+            System.out.println("Success creation");
+            stmt.close();
+        } catch (SQLException e) {
+            if (e instanceof java.sql.SQLSyntaxErrorException){
+                System.out.println("Table Alredy exists");
+            }
+            else {
+                System.out.println("Altro errore generico");
+            }
+        }
     }
 }
